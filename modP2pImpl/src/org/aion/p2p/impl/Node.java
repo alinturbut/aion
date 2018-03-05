@@ -73,18 +73,24 @@ public final class Node implements INode {
 
     private byte[] bestBlockHash;
 
-    private byte[] totalDifficulty;
+    private byte[] totalDifficulty = new byte[] { 0 };
 
     private SocketChannel channel;
 
     private String type = "";
 
-    private static final String REGEX_PROTOCOL = "^p2p://";                                                               // Protocol eg. p2p://
-    private static final String REGEX_NODE_ID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";           // Node-Id  eg. 3e2cab6a-09dd-4771-b28d-6aa674009796
-    private static final String REGEX_IPV4 = "(([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.){3}([01]?\\d\\d?|2[0-4]\\d|25[0-5])";  // Ip       eg. 127.0.0.1
-    private static final String REGEX_PORT = "[0-9]+$";                                                                   // Port     eg. 30303
+    private static final String REGEX_PROTOCOL = "^p2p://"; // Protocol eg.
+                                                            // p2p://
+    private static final String REGEX_NODE_ID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"; // Node-Id
+                                                                                                                // eg.
+                                                                                                                // 3e2cab6a-09dd-4771-b28d-6aa674009796
+    private static final String REGEX_IPV4 = "(([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.){3}([01]?\\d\\d?|2[0-4]\\d|25[0-5])"; // Ip
+                                                                                                                         // eg.
+                                                                                                                         // 127.0.0.1
+    private static final String REGEX_PORT = "[0-9]+$"; // Port eg. 30303
 
-    private static final Pattern PATTERN_P2P = Pattern.compile(REGEX_PROTOCOL + REGEX_NODE_ID + "@" + REGEX_IPV4 + ":" + REGEX_PORT);
+    private static final Pattern PATTERN_P2P = Pattern
+            .compile(REGEX_PROTOCOL + REGEX_NODE_ID + "@" + REGEX_IPV4 + ":" + REGEX_PORT);
 
     private static final int SIZE_BYTES_IPV4 = 8;
 
@@ -140,7 +146,8 @@ public final class Node implements INode {
     }
 
     /**
-     * @param _ip String
+     * @param _ip
+     *            String
      * @return byte[]
      */
     public static byte[] ipStrToBytes(final String _ip) {
@@ -159,14 +166,15 @@ public final class Node implements INode {
     }
 
     /**
-     * @param _ip byte[]
+     * @param _ip
+     *            byte[]
      * @return String
      */
     static String ipBytesToStr(final byte[] _ip) {
-        if(_ip == null || _ip.length != SIZE_BYTES_IPV4)
+        if (_ip == null || _ip.length != SIZE_BYTES_IPV4)
             return "";
         else {
-            short[] shorts = new short[_ip.length/2];
+            short[] shorts = new short[_ip.length / 2];
             ByteBuffer.wrap(_ip).asShortBuffer().get(shorts);
 
             String ip = "";
@@ -179,9 +187,9 @@ public final class Node implements INode {
     }
 
     /**
-     * @param _p2p String
-     * @return Node
-     * TODO: ugly
+     * @param _p2p
+     *            String
+     * @return Node TODO: ugly
      */
     public static Node parseP2p(String _p2p) {
         if (!PATTERN_P2P.matcher(_p2p).matches())
@@ -204,7 +212,8 @@ public final class Node implements INode {
     }
 
     /**
-     * @param _id byte[]
+     * @param _id
+     *            byte[]
      */
     void setId(final byte[] _id) {
         this.id = _id;
@@ -215,14 +224,16 @@ public final class Node implements INode {
     }
 
     /**
-     * @param _version int
+     * @param _version
+     *            int
      */
     void setVersion(final int _version) {
         this.version = _version;
     }
 
     /**
-     * @param _port int
+     * @param _port
+     *            int
      */
     void setPort(final int _port) {
         this.port = _port;
@@ -241,14 +252,16 @@ public final class Node implements INode {
     }
 
     /**
-     * @param _channel SocketChannel
+     * @param _channel
+     *            SocketChannel
      */
     void setChannel(final SocketChannel _channel) {
         this.channel = _channel;
     }
 
     /**
-     * @param _type String
+     * @param _type
+     *            String
      */
     void setType(String _type) {
         this.type = _type;
@@ -358,7 +371,7 @@ public final class Node implements INode {
         if (_bestBlockNumber > this.bestBlockNumber) {
             this.bestBlockNumber = _bestBlockNumber;
             this.bestBlockHash = _bestBlockHash;
-            this.totalDifficulty = _totalDifficulty;
+            this.totalDifficulty = _totalDifficulty == null ? new byte[] { 0 } : _totalDifficulty;
         }
     }
 

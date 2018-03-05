@@ -68,34 +68,55 @@ public class NodeMgr implements INodeMgr {
 
     /**
      *
-     * @param selfShortId String
+     * @param selfShortId
+     *            String
      */
     void dumpNodeInfo(String selfShortId) {
         StringBuilder sb = new StringBuilder();
         sb.append("\n");
         sb.append(String.format("   ================== p2p-status-%6s ==================\n", selfShortId));
-        sb.append(String.format("   temp[%d] inbound[%d] outbound[%d]\n",
-            tempNodesSize(),
-            inboundNodes.size(),
-            outboundNodes.size()
-        ));
-        List<Node> sorted = new ArrayList<>(activeNodes.values());
-        if(sorted.size() > 0){
+        sb.append(String.format("   temp[%d] inbound[%d] outbound[%d]\n", tempNodesSize(), inboundNodes.size(),
+                outboundNodes.size()));
+
+        List<Node> acts = new ArrayList<>(activeNodes.values());
+        // acts.sort((n1, n2) -> Long.compare(n2.getBestBlockNumber(),
+        // n1.getBestBlockNumber()));
+
+        List<Node> all = new ArrayList<>(allNodes.values());
+        all.sort((a, b) -> {
+            int diff = new BigInteger(1, b.getTotalDifficulty()).compareTo(new BigInteger(1, a.getTotalDifficulty()));
+            if (diff != 0) {
+                return diff;
+            } else {
+                int bn = (int) (b.getBestBlockNumber() - a.getBestBlockNumber());
+                if (bn != 0)
+                    return bn;
+                else {
+                    int aa = acts.contains(a) ? 1 : 0;
+                    int bb = acts.contains(b) ? 1 : 0;
+                    return (bb - aa);
+                }
+            }
+        });
+        int cnt = 0;
+
+        if (all.size() > 0) {
             sb.append("   -------------------------------------------------------\n");
-            sb.append("   seed       blk               td      id              ip   port      type\n");
-            sorted.sort((n1, n2) -> Long.compare(n2.getBestBlockNumber(), n1.getBestBlockNumber()));
-            for (Node n : sorted) {
-                sb.append(
-                    String.format("      %c%10d %16s  %6s %15s  %5d  %8s\n",
-                        n.getIfFromBootList() ? 0x221A : ' ',
-                        n.getBestBlockNumber(),
-                        n.getTotalDifficulty() == null ? "0" : new BigInteger(1, n.getTotalDifficulty()).toString(10),
-                        n.getIdShort(),
-                        n.getIpStr(),
-                        n.getPort(),
-                        n.getType()
-                    )
-                );
+            sb.append("             NID S A               TD          #              IP     CP     LP  F\n");
+
+            for (Node n : all) {
+                sb.append(String.format("   ID:%3d %6s %1s %1s %16s %10d %15s  %5d  %5s %2d\n", //
+                        cnt, //
+                        n.getIdShort(), //
+                        n.getIfFromBootList() ? 0x221A : ' ', //
+                        acts.contains(n) ? 0x221A : ' ', //
+                        n.getTotalDifficulty() == null ? "0" : new BigInteger(1, n.getTotalDifficulty()).toString(10), //
+                        n.getBestBlockNumber(), //
+                        n.getIpStr(), //
+                        n.getPort(), //
+                        n.getConnectedPort(), //
+                        n.peerMetric.metricFailedConn));
+                cnt++;
             }
         }
         sb.append("\n");
@@ -130,7 +151,8 @@ public class NodeMgr implements INodeMgr {
     }
 
     /**
-     * @param _n Node
+     * @param _n
+     *            Node
      */
     void tempNodesAdd(final Node _n) {
         if (!tempNodes.contains(_n)) {
@@ -140,9 +162,10 @@ public class NodeMgr implements INodeMgr {
     }
 
     /**
-     * @param _ip String
+     * @param _ip
+     *            String
      */
-    void seedIpAdd(String _ip){
+    void seedIpAdd(String _ip) {
         this.seedIps.add(_ip);
     }
 
@@ -162,7 +185,7 @@ public class NodeMgr implements INodeMgr {
     /**
      * for test
      */
-    void clearTempNodes(){
+    void clearTempNodes() {
         this.tempNodes.clear();
     }
 
@@ -241,9 +264,12 @@ public class NodeMgr implements INodeMgr {
     }
 
     /**
-     * @param _nodeIdHash int
-     * @param _shortId String
-     * @param _p2pMgr P2pMgr
+     * @param _nodeIdHash
+     *            int
+     * @param _shortId
+     *            String
+     * @param _p2pMgr
+     *            P2pMgr
      */
     void moveOutboundToActive(int _nodeIdHash, String _shortId, final P2pMgr _p2pMgr) {
         Node node = outboundNodes.remove(_nodeIdHash);
@@ -260,8 +286,10 @@ public class NodeMgr implements INodeMgr {
     }
 
     /**
-     * @param _channelHashCode int
-     * @param _p2pMgr P2pMgr
+     * @param _channelHashCode
+     *            int
+     * @param _p2pMgr
+     *            P2pMgr
      */
     void moveInboundToActive(int _channelHashCode, final P2pMgr _p2pMgr) {
         Node node = inboundNodes.remove(_channelHashCode);
@@ -324,7 +352,8 @@ public class NodeMgr implements INodeMgr {
     }
 
     /**
-     * @param _p2pMgr P2pMgr
+     * @param _p2pMgr
+     *            P2pMgr
      */
     void shutdown(final P2pMgr _p2pMgr) {
         try {
