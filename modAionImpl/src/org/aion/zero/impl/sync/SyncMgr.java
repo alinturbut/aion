@@ -57,10 +57,10 @@ import org.aion.zero.impl.sync.msg.ReqStatus;
 import org.aion.zero.impl.types.AionBlock;
 import org.aion.zero.types.A0BlockHeader;
 import org.aion.mcf.valid.BlockHeaderValidator;
+import org.apache.commons.collections4.map.LRUMap;
 
 /**
- * @author chris
- * TODO: pre selected peers list based on target total difficult
+ * @author chris TODO: pre selected peers list based on target total difficult
  */
 public final class SyncMgr {
 
@@ -102,6 +102,31 @@ public final class SyncMgr {
 
     }
 
+    // private class TDDetection {
+    // int cnt = 0;
+    // List<ByteArrayWrapper> tds = new LinkedList<>();
+    // List<Integer> count = new LinkedList<>();
+    //
+    // boolean hasConflict() {
+    // return tds.size() > 0;
+    // }
+    //
+    // void addTd(ByteArrayWrapper td) {
+    // int i = 0;
+    // for (ByteArrayWrapper baw : tds) {
+    // if (baw.compareTo(td) == 0) {
+    // int c = count.get(i);
+    // c++;
+    // count.add(i, c);
+    // }
+    // i++;
+    // }
+    // }
+    //
+    // }
+
+    private LRUMap<ByteArrayWrapper, ByteArrayWrapper> totolDiffMap = new LRUMap<>(1024);
+
     private AtomicReference<NetBestStatus> netBestStatus = new AtomicReference<>(new NetBestStatus());
 
     // store headers that has been sent to fetch block bodies
@@ -131,40 +156,57 @@ public final class SyncMgr {
     // blocknumber and blockhash is atomic, but still need sync to prevent
     // blocknumber link to wrong block hash.
     public synchronized void updateNetworkBestBlock(String _displayId, long _nodeBestBlockNumber,
-            final byte[] _nodeBestBlockHash, final byte[] _totalDiff) {
+            final byte[] _nodeBestBlockHash, byte[] _totalDiff) {
         long selfBestBlockNumber = this.blockchain.getBestBlock().getNumber();
         BigInteger totalDiff = new BigInteger(1, _totalDiff);
-        if (_nodeBestBlockNumber > this.netBestStatus.get().blockNumber) {
-            if (netBestStatus.get().totalDiff.compareTo(totalDiff) < 0) {
-                netBestStatus.get().blockNumber = _nodeBestBlockNumber;
-                netBestStatus.get().blockHash = _nodeBestBlockHash;
-                netBestStatus.get().totalDiff = totalDiff;
-                if (_nodeBestBlockNumber > this.blockchain.getBestBlock().getNumber())
-                    getHeaders();
 
-            } else {
+        ByteArrayWrapper bh = new ByteArrayWrapper(_nodeBestBlockHash);
 
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "<network-best-block-diff-fail remote-id={} num={} diff={} best-diff={} self-num={}  known-network-num={} send-on-sync-done>",
-                            _displayId, _nodeBestBlockNumber, totalDiff, netBestStatus.get().totalDiff,
-                            selfBestBlockNumber, this.netBestStatus.get().blockNumber);
-                }
-            }
+        ByteArrayWrapper td = totolDiffMap.get(bh);
+
+        if (td == null) {
+            totolDiffMap.put(bh, new ByteArrayWrapper(_totalDiff));
+
         }
 
-        if (this.netBestStatus.get().blockNumber <= selfBestBlockNumber){
-            this.evtMgr.newEvent(new EventConsensus(EventConsensus.CALLBACK.ON_SYNC_DONE));
-            if (LOG.isDebugEnabled()) {
-                LOG.debug(
-                        "<network-best-block-updated remote-num={} self-num={} known-network-num={} send-on-sync-done>",
-                        _nodeBestBlockNumber, selfBestBlockNumber, this.netBestStatus.get().blockNumber);
+        if (Arrays.compare(td.getData(), _totalDiff) == 0) {
+
+            if (_nodeBestBlockNumber > this.netBestStatus.get().blockNumber) {
+                if (netBestStatus.get().totalDiff.compareTo(totalDiff) < 0) {
+                    netBestStatus.get().blockNumber = _nodeBestBlockNumber;
+                    netBestStatus.get().blockHash = _nodeBestBlockHash;
+                    netBestStatus.get().totalDiff = totalDiff;
+                    if (_nodeBestBlockNumber > this.blockchain.getBestBlock().getNumber())
+                        getHeaders();
+
+                } else {
+
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(
+                                "<network-best-block-diff-fail remote-id={} num={} diff={} best-diff={} self-num={}  known-network-num={} send-on-sync-done>",
+                                _displayId, _nodeBestBlockNumber, totalDiff, netBestStatus.get().totalDiff,
+                                selfBestBlockNumber, this.netBestStatus.get().blockNumber);
+                    }
+                }
+            }
+
+            if (this.netBestStatus.get().blockNumber <= selfBestBlockNumber) {
+                this.evtMgr.newEvent(new EventConsensus(EventConsensus.CALLBACK.ON_SYNC_DONE));
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "<network-best-block-updated remote-num={} self-num={} known-network-num={} send-on-sync-done>",
+                            _nodeBestBlockNumber, selfBestBlockNumber, this.netBestStatus.get().blockNumber);
+                }
+            } else {
+                if (LOG.isDebugEnabled())
+                    LOG.debug(
+                            "<network-best-block-updated remote-num={} self-num={} known-network-num={} continue-on-sync>",
+                            _nodeBestBlockNumber, selfBestBlockNumber, this.netBestStatus.get().blockNumber);
             }
         } else {
             if (LOG.isDebugEnabled())
-                LOG.debug(
-                        "<network-best-block-updated remote-num={} self-num={} known-network-num={} continue-on-sync>",
-                        _nodeBestBlockNumber, selfBestBlockNumber, this.netBestStatus.get().blockNumber);
+                LOG.debug("<network-best-block-diff-colision remote-num={} diff-a={}, diff-b={} >",
+                        _nodeBestBlockNumber, new BigInteger(_totalDiff), new BigInteger(td.getData()));
         }
     }
 
@@ -197,8 +239,7 @@ public final class SyncMgr {
                 AionBlock blk = blockchain.getBestBlock();
                 System.out.println("[sync-status self=" + blk.getNumber() + "/"
                         + this.blockchain.getTotalDifficulty().toString(10) + " network="
-                        + this.netBestStatus.get().blockNumber + "/"
-                        + netBestStatus.get().totalDiff.toString(10)
+                        + this.netBestStatus.get().blockNumber + "/" + netBestStatus.get().totalDiff.toString(10)
                         + " blocks-queue-size=" + importedBlocks.size() + "]");
             }, 0, 5000, TimeUnit.MILLISECONDS);
         scheduledWorkers.scheduleWithFixedDelay(() -> {
@@ -322,10 +363,10 @@ public final class SyncMgr {
 
         Set<Integer> ids = new HashSet<>();
 
-        List<INode> filtered = p2pMgr.getActiveNodes().values().stream().filter(
-                (n) -> netBestStatus.get().totalDiff != null &&
-                        n.getTotalDifficulty() != null &&
-                    (new BigInteger(1, n.getTotalDifficulty())).compareTo(netBestStatus.get().totalDiff) >= 0).collect(Collectors.toList());
+        List<INode> filtered = p2pMgr.getActiveNodes().values().stream()
+                .filter((n) -> netBestStatus.get().totalDiff != null && n.getTotalDifficulty() != null
+                        && (new BigInteger(1, n.getTotalDifficulty())).compareTo(netBestStatus.get().totalDiff) >= 0)
+                .collect(Collectors.toList());
 
         Random r = new Random(System.currentTimeMillis());
         for (int i = 0; i < 3; i++) {
@@ -337,14 +378,15 @@ public final class SyncMgr {
                     int take = (int) (to - from) + 1;
                     ids.add(node.getIdHash());
                     this.p2pMgr.send(node.getIdHash(), new ReqBlocksHeaders(from, take));
-                    // ids.put(node.getIdHash(), new HeaderQuery(node.getIdShort(), from, take));
+                    // ids.put(node.getIdHash(), new
+                    // HeaderQuery(node.getIdShort(), from, take));
                 }
             }
         }
-//        ids.forEach((k, v) -> {
-//            // System.out.println("head req from " + v.from + " take " + v.take);
-//            this.p2pMgr.send(k, new ReqBlocksHeaders(v.from, v.take));
-//        });
+        // ids.forEach((k, v) -> {
+        // // System.out.println("head req from " + v.from + " take " + v.take);
+        // this.p2pMgr.send(k, new ReqBlocksHeaders(v.from, v.take));
+        // });
     }
 
     private void processGetBlocks() {
@@ -422,8 +464,6 @@ public final class SyncMgr {
                     Thread.sleep(1000);
                     continue;
                 }
-
-
 
                 boolean fetchAheadTriggerUsed = false;
 
