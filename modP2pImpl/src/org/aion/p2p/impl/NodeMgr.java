@@ -30,7 +30,6 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
-
 import org.aion.p2p.INode;
 import org.aion.p2p.INodeMgr;
 
@@ -79,39 +78,43 @@ public class NodeMgr implements INodeMgr {
                 outboundNodes.size()));
 
         List<Node> acts = new ArrayList<>(activeNodes.values());
-        // acts.sort((n1, n2) -> Long.compare(n2.getBestBlockNumber(),
-        // n1.getBestBlockNumber()));
+        acts.sort((n1, n2) -> Long.compare(n2.getBestBlockNumber(), n1.getBestBlockNumber()));
 
         List<Node> all = new ArrayList<>(allNodes.values());
-        all.sort((a, b) -> {
-            int diff = new BigInteger(1, b.getTotalDifficulty()).compareTo(new BigInteger(1, a.getTotalDifficulty()));
-            if (diff != 0) {
-                return diff;
-            } else {
-                int bn = (int) (b.getBestBlockNumber() - a.getBestBlockNumber());
-                if (bn != 0)
-                    return bn;
-                else {
-                    int aa = acts.contains(a) ? 1 : 0;
-                    int bb = acts.contains(b) ? 1 : 0;
-                    return (bb - aa);
-                }
-            }
-        });
+        // all.sort((a, b) -> {
+        // int diff = new BigInteger(1, b.getTotalDifficulty()).compareTo(new
+        // BigInteger(1, a.getTotalDifficulty()));
+        // if (diff != 0) {
+        // return diff;
+        // } else {
+        // int bn = (int) (b.getBestBlockNumber() - a.getBestBlockNumber());
+        // if (bn != 0)
+        // return bn;
+        // else {
+        // int aa = acts.contains(a) ? 1 : 0;
+        // int bb = acts.contains(b) ? 1 : 0;
+        // return (bb - aa);
+        // }
+        // }
+        // });
         int cnt = 0;
 
-        if (all.size() > 0) {
+        // if (all.size() > 0) {
+        if (acts.size() > 0) {
             sb.append("   -------------------------------------------------------\n");
-            sb.append("             NID S A               TD          #              IP     CP     LP  F\n");
+            sb.append("             NID S A               TD          #                                                               H       IP     CP     LP  F\n");
 
-            for (Node n : all) {
-                sb.append(String.format("   ID:%3d %6s %1s %1s %16s %10d %15s  %5d  %5s %2d\n", //
+            for (Node n : acts) {
+                byte[] hash = n.getBestBlockHash();
+                hash = hash == null ? new byte[] { 0 } : hash;
+                sb.append(String.format("   ID:%3d %6s %1s %1s %16s %10d %15s %15s %5d  %5s %2d\n", //
                         cnt, //
                         n.getIdShort(), //
                         n.getIfFromBootList() ? 0x221A : ' ', //
                         acts.contains(n) ? 0x221A : ' ', //
                         n.getTotalDifficulty() == null ? "0" : new BigInteger(1, n.getTotalDifficulty()).toString(10), //
                         n.getBestBlockNumber(), //
+                        bytesToHex(hash), //
                         n.getIpStr(), //
                         n.getPort(), //
                         n.getConnectedPort(), //
@@ -121,6 +124,18 @@ public class NodeMgr implements INodeMgr {
         }
         sb.append("\n");
         System.out.println(sb.toString());
+    }
+
+    private final static char[] hexArray = "0123456789ABCDEF".toCharArray();
+
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = hexArray[v >>> 4];
+            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+        }
+        return new String(hexChars);
     }
 
     private void updateMetric(final Node _n) {
