@@ -22,7 +22,7 @@ fi
 
 MAJVER=$(uname -r | grep -o "[0-9][0-9]" | sed -n 1p)
 if [ "$MAJVER" -lt "16" ]; then
-  echo "Warning! Aion blockchain is fully compati ble with the Ubuntu version 16.04. Your current system is older than Ubuntu 16.04. It may have some issues."
+  echo "Warning! Aion blockchain is fully compatible with the Ubuntu version 16.04. Your current system is older than Ubuntu 16.04. It may have some issues."
 fi
 
 ARG=$@
