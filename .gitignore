@@ -8,6 +8,7 @@ pack/
 .idea/
 mod*/.idea/
 mod*/*.iml
+*.iml
 
 # build
 build/
@@ -20,5 +21,8 @@ native/linux/equihash/equiMiner.so
 # ci
 report/
 */report/
+
+# git
+.gradle/
 
 .ant-targets-build.xml

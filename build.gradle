@@ -1,0 +1,27 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+}
+
+plugins {
+	id "java"
+}
+
+apply plugin: 'propdeps'
+apply plugin: 'propdeps-idea'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.2.1'
+}
+
+ant.importBuild 'build.xml'
